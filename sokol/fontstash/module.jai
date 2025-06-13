@@ -296,67 +296,16 @@ STBTT_MAC_LANG :: enum u32 {
 }
 // ----------------------------------------
 
-#module_parameters(DEBUG := false, USE_GL := false, USE_DLL := false);
-
 #scope_export;
 
-#if OS == .WINDOWS {
-    #if USE_DLL {
-        #if USE_GL {
-
-            #if  DEBUG { sokol_fontstash_clib :: #library "sokol_fontstash_windows_x64_gl_debug";   }
-            else       { sokol_fontstash_clib :: #library "sokol_fontstash_windows_x64_gl_release"; }
-        } else {
-
-            #if  DEBUG { sokol_fontstash_clib :: #library "sokol_fontstash_windows_x64_d3d11_debug";   }
-            else       { sokol_fontstash_clib :: #library "sokol_fontstash_windows_x64_d3d11_release"; }
-        }
-    } else {
-        #if USE_GL {
-
-            #if  DEBUG { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_windows_x64_gl_debug";   }
-            else       { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_windows_x64_gl_release"; }
-        } else {
-
-            #if  DEBUG { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_windows_x64_d3d11_debug";   }
-            else       { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_windows_x64_d3d11_release"; }
-        }
-    }
-}
-else #if OS == .MACOS {
-    #if USE_DLL {
-             #if  USE_GL && CPU == .ARM64 &&  DEBUG { sokol_fontstash_clib :: #library "../dylib/sokol_dylib_macos_arm64_gl_debug.dylib"; }
-        else #if  USE_GL && CPU == .ARM64 && !DEBUG { sokol_fontstash_clib :: #library "../dylib/sokol_dylib_macos_arm64_gl_release.dylib"; }
-        else #if  USE_GL && CPU == .X64   &&  DEBUG { sokol_fontstash_clib :: #library "../dylib/sokol_dylib_macos_x64_gl_debug.dylib"; }
-        else #if  USE_GL && CPU == .X64   && !DEBUG { sokol_fontstash_clib :: #library "../dylib/sokol_dylib_macos_x64_gl_release.dylib"; }
-        else #if !USE_GL && CPU == .ARM64 &&  DEBUG { sokol_fontstash_clib :: #library "../dylib/sokol_dylib_macos_arm64_metal_debug.dylib"; }
-        else #if !USE_GL && CPU == .ARM64 && !DEBUG { sokol_fontstash_clib :: #library "../dylib/sokol_dylib_macos_arm64_metal_release.dylib"; }
-        else #if !USE_GL && CPU == .X64   &&  DEBUG { sokol_fontstash_clib :: #library "../dylib/sokol_dylib_macos_x64_metal_debug.dylib"; }
-        else #if !USE_GL && CPU == .X64   && !DEBUG { sokol_fontstash_clib :: #library "../dylib/sokol_dylib_macos_x64_metal_release.dylib"; }
-    } else {
-        #if USE_GL {
-
-            #if CPU == .ARM64 {
-                #if  DEBUG { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_macos_arm64_gl_debug";   }
-                else       { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_macos_arm64_gl_release"; }
-            } else {
-                #if  DEBUG { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_macos_x64_gl_debug";   }
-                else       { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_macos_x64_gl_release"; }
-            }
-        } else {
-
-            #if CPU == .ARM64 {
-                #if  DEBUG { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_macos_arm64_metal_debug";   }
-                else       { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_macos_arm64_metal_release"; }
-            } else {
-                #if  DEBUG { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_macos_x64_metal_debug";   }
-                else       { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_macos_x64_metal_release"; }
-            }
-        }
-    }
-} else #if OS == .LINUX {
-    #if  DEBUG { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_linux_x64_gl_debug";   }
-    else       { sokol_fontstash_clib :: #library,no_dll "sokol_fontstash_linux_x64_gl_release"; }
+#if OS == .WINDOWS && CPU == .X64 {
+    sokol_fontstash_clib :: #library,no_dll "bin/sokol_fontstash_windows";
+} else #if OS == .MACOS && CPU == .ARM64 {
+    sokol_fontstash_clib :: #library,no_dll "bin/sokol_fontstash_macos";
+} else #if OS == .IOS {
+    sokol_fontstash_clib :: #library,no_dll "bin/sokol_fontstash_ios";
+} else #if OS == .ANDROID && CPU == .ARM64 {
+    sokol_fontstash_clib :: #library,no_dll "bin/sokol_fontstash_android";
 } else {
     log_error("This OS is currently not supported");
 }

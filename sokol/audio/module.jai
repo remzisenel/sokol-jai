@@ -479,71 +479,21 @@
 
 */
 
-#module_parameters(DEBUG := false, USE_GL := false, USE_DLL := false);
-
 #scope_export;
 
 #if OS == .WINDOWS {
-    #if USE_DLL {
-        #if USE_GL {
-            #system_library,link_always "ole32";
-            #if  DEBUG { sokol_audio_clib :: #library "sokol_audio_windows_x64_gl_debug";   }
-            else       { sokol_audio_clib :: #library "sokol_audio_windows_x64_gl_release"; }
-        } else {
-            #system_library,link_always "ole32";
-            #if  DEBUG { sokol_audio_clib :: #library "sokol_audio_windows_x64_d3d11_debug";   }
-            else       { sokol_audio_clib :: #library "sokol_audio_windows_x64_d3d11_release"; }
-        }
-    } else {
-        #if USE_GL {
-            #system_library,link_always "ole32";
-            #if  DEBUG { sokol_audio_clib :: #library,no_dll "sokol_audio_windows_x64_gl_debug";   }
-            else       { sokol_audio_clib :: #library,no_dll "sokol_audio_windows_x64_gl_release"; }
-        } else {
-            #system_library,link_always "ole32";
-            #if  DEBUG { sokol_audio_clib :: #library,no_dll "sokol_audio_windows_x64_d3d11_debug";   }
-            else       { sokol_audio_clib :: #library,no_dll "sokol_audio_windows_x64_d3d11_release"; }
-        }
-    }
-}
-else #if OS == .MACOS {
-    #if USE_DLL {
-             #if  USE_GL && CPU == .ARM64 &&  DEBUG { sokol_audio_clib :: #library "../dylib/sokol_dylib_macos_arm64_gl_debug.dylib"; }
-        else #if  USE_GL && CPU == .ARM64 && !DEBUG { sokol_audio_clib :: #library "../dylib/sokol_dylib_macos_arm64_gl_release.dylib"; }
-        else #if  USE_GL && CPU == .X64   &&  DEBUG { sokol_audio_clib :: #library "../dylib/sokol_dylib_macos_x64_gl_debug.dylib"; }
-        else #if  USE_GL && CPU == .X64   && !DEBUG { sokol_audio_clib :: #library "../dylib/sokol_dylib_macos_x64_gl_release.dylib"; }
-        else #if !USE_GL && CPU == .ARM64 &&  DEBUG { sokol_audio_clib :: #library "../dylib/sokol_dylib_macos_arm64_metal_debug.dylib"; }
-        else #if !USE_GL && CPU == .ARM64 && !DEBUG { sokol_audio_clib :: #library "../dylib/sokol_dylib_macos_arm64_metal_release.dylib"; }
-        else #if !USE_GL && CPU == .X64   &&  DEBUG { sokol_audio_clib :: #library "../dylib/sokol_dylib_macos_x64_metal_debug.dylib"; }
-        else #if !USE_GL && CPU == .X64   && !DEBUG { sokol_audio_clib :: #library "../dylib/sokol_dylib_macos_x64_metal_release.dylib"; }
-    } else {
-        #if USE_GL {
-            #system_library,link_always "AudioToolbox";
-            #if CPU == .ARM64 {
-                #if  DEBUG { sokol_audio_clib :: #library,no_dll "sokol_audio_macos_arm64_gl_debug";   }
-                else       { sokol_audio_clib :: #library,no_dll "sokol_audio_macos_arm64_gl_release"; }
-            } else {
-                #if  DEBUG { sokol_audio_clib :: #library,no_dll "sokol_audio_macos_x64_gl_debug";   }
-                else       { sokol_audio_clib :: #library,no_dll "sokol_audio_macos_x64_gl_release"; }
-            }
-        } else {
-            #system_library,link_always "AudioToolbox";
-            #if CPU == .ARM64 {
-                #if  DEBUG { sokol_audio_clib :: #library,no_dll "sokol_audio_macos_arm64_metal_debug";   }
-                else       { sokol_audio_clib :: #library,no_dll "sokol_audio_macos_arm64_metal_release"; }
-            } else {
-                #if  DEBUG { sokol_audio_clib :: #library,no_dll "sokol_audio_macos_x64_metal_debug";   }
-                else       { sokol_audio_clib :: #library,no_dll "sokol_audio_macos_x64_metal_release"; }
-            }
-        }
-    }
-} else #if OS == .LINUX {
-    #system_library,link_always "asound"; #system_library,link_always "dl"; #system_library,link_always "pthread";
-    #if  DEBUG { sokol_audio_clib :: #library,no_dll "sokol_audio_linux_x64_gl_debug";   }
-    else       { sokol_audio_clib :: #library,no_dll "sokol_audio_linux_x64_gl_release"; }
-} else #if OS == .WASM {
-    #if  DEBUG { sokol_audio_clib :: #library,no_dll "sokol_audio_wasm_gl_debug";   }
-    else       { sokol_audio_clib :: #library,no_dll "sokol_audio_wasm_gl_release"; }
+    #system_library,link_always "ole32";
+    sokol_audio_clib :: #library,no_dll "bin/sokol_audio_windows";
+} else #if OS == .MACOS {
+    #system_library,link_always "AudioToolbox";
+    sokol_audio_clib :: #library,no_dll "bin/sokol_audio_macos";
+} else #if OS == .ANDROID {
+    #system_library,link_always "aaudio";
+    sokol_audio_clib :: #library,no_dll "bin/sokol_audio_android";
+} else #if OS == .IOS {
+    #system_library,link_always "AudioToolbox";
+    #system_library,link_always "AVFoundation";
+    sokol_audio_clib :: #library,no_dll "bin/sokol_audio_ios";
 } else {
     log_error("This OS is currently not supported");
 }

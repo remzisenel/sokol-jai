@@ -1286,71 +1286,32 @@
 
 */
 
-#module_parameters(DEBUG := false, USE_GL := false, USE_DLL := false);
-
 #scope_export;
 
 #if OS == .WINDOWS {
-    #if USE_DLL {
-        #if USE_GL {
-            #system_library,link_always "gdi32"; #system_library,link_always "dxguid"; #system_library,link_always "user32"; #system_library,link_always "shell32";
-            #if  DEBUG { sokol_app_clib :: #library "sokol_app_windows_x64_gl_debug";   }
-            else       { sokol_app_clib :: #library "sokol_app_windows_x64_gl_release"; }
-        } else {
-            #system_library,link_always "gdi32"; #system_library,link_always "dxguid"; #system_library,link_always "user32"; #system_library,link_always "shell32";
-            #if  DEBUG { sokol_app_clib :: #library "sokol_app_windows_x64_d3d11_debug";   }
-            else       { sokol_app_clib :: #library "sokol_app_windows_x64_d3d11_release"; }
-        }
-    } else {
-        #if USE_GL {
-            #system_library,link_always "gdi32"; #system_library,link_always "dxguid"; #system_library,link_always "user32"; #system_library,link_always "shell32";
-            #if  DEBUG { sokol_app_clib :: #library,no_dll "sokol_app_windows_x64_gl_debug";   }
-            else       { sokol_app_clib :: #library,no_dll "sokol_app_windows_x64_gl_release"; }
-        } else {
-            #system_library,link_always "gdi32"; #system_library,link_always "dxguid"; #system_library,link_always "user32"; #system_library,link_always "shell32";
-            #if  DEBUG { sokol_app_clib :: #library,no_dll "sokol_app_windows_x64_d3d11_debug";   }
-            else       { sokol_app_clib :: #library,no_dll "sokol_app_windows_x64_d3d11_release"; }
-        }
-    }
-}
-else #if OS == .MACOS {
-    #if USE_DLL {
-             #if  USE_GL && CPU == .ARM64 &&  DEBUG { sokol_app_clib :: #library "../dylib/sokol_dylib_macos_arm64_gl_debug.dylib"; }
-        else #if  USE_GL && CPU == .ARM64 && !DEBUG { sokol_app_clib :: #library "../dylib/sokol_dylib_macos_arm64_gl_release.dylib"; }
-        else #if  USE_GL && CPU == .X64   &&  DEBUG { sokol_app_clib :: #library "../dylib/sokol_dylib_macos_x64_gl_debug.dylib"; }
-        else #if  USE_GL && CPU == .X64   && !DEBUG { sokol_app_clib :: #library "../dylib/sokol_dylib_macos_x64_gl_release.dylib"; }
-        else #if !USE_GL && CPU == .ARM64 &&  DEBUG { sokol_app_clib :: #library "../dylib/sokol_dylib_macos_arm64_metal_debug.dylib"; }
-        else #if !USE_GL && CPU == .ARM64 && !DEBUG { sokol_app_clib :: #library "../dylib/sokol_dylib_macos_arm64_metal_release.dylib"; }
-        else #if !USE_GL && CPU == .X64   &&  DEBUG { sokol_app_clib :: #library "../dylib/sokol_dylib_macos_x64_metal_debug.dylib"; }
-        else #if !USE_GL && CPU == .X64   && !DEBUG { sokol_app_clib :: #library "../dylib/sokol_dylib_macos_x64_metal_release.dylib"; }
-    } else {
-        #if USE_GL {
-            #system_library,link_always "Cocoa"; #system_library,link_always "QuartzCore";
-            #if CPU == .ARM64 {
-                #if  DEBUG { sokol_app_clib :: #library,no_dll "sokol_app_macos_arm64_gl_debug";   }
-                else       { sokol_app_clib :: #library,no_dll "sokol_app_macos_arm64_gl_release"; }
-            } else {
-                #if  DEBUG { sokol_app_clib :: #library,no_dll "sokol_app_macos_x64_gl_debug";   }
-                else       { sokol_app_clib :: #library,no_dll "sokol_app_macos_x64_gl_release"; }
-            }
-        } else {
-            #library "../../libclang_rt.osx"; #system_library,link_always "Cocoa"; #system_library,link_always "QuartzCore";
-            #if CPU == .ARM64 {
-                #if  DEBUG { sokol_app_clib :: #library,no_dll "sokol_app_macos_arm64_metal_debug";   }
-                else       { sokol_app_clib :: #library,no_dll "sokol_app_macos_arm64_metal_release"; }
-            } else {
-                #if  DEBUG { sokol_app_clib :: #library,no_dll "sokol_app_macos_x64_metal_debug";   }
-                else       { sokol_app_clib :: #library,no_dll "sokol_app_macos_x64_metal_release"; }
-            }
-        }
-    }
-} else #if OS == .LINUX {
-    #system_library,link_always "libXcursor"; #system_library,link_always "libX11"; #system_library,link_always "libXi"; #system_library,link_always "libGL";
-    #if  DEBUG { sokol_app_clib :: #library,no_dll "sokol_app_linux_x64_gl_debug";   }
-    else       { sokol_app_clib :: #library,no_dll "sokol_app_linux_x64_gl_release"; }
-} else #if OS == .WASM {
-    #if  DEBUG { sokol_app_clib :: #library,no_dll "sokol_app_wasm_gl_debug";   }
-    else       { sokol_app_clib :: #library,no_dll "sokol_app_wasm_gl_release"; }
+    #system_library,link_always "kernel32";
+    #system_library,link_always "user32";
+    #system_library,link_always "shell32";
+    #system_library,link_always "gdi32";
+    sokol_app_clib :: #library,no_dll "bin/sokol_app_windows";
+} else #if OS == .MACOS {
+    #system_library,link_always "Cocoa";
+    #system_library,link_always "QuartzCore";
+    #system_library,link_always "Metal";
+    #system_library,link_always "MetalKit";
+    sokol_app_clib :: #library,no_dll "bin/sokol_app_macos";
+} else #if OS == .ANDROID {
+    #system_library,link_always "GLESv3";
+    #system_library,link_always "EGL";
+    #system_library,link_always "log";
+    #system_library,link_always "android";
+    sokol_app_clib :: #library,no_dll "bin/sokol_app_android";
+} else #if OS == .IOS {
+    #system_library,link_always "Foundation";
+    #system_library,link_always "UIKit";
+    #system_library,link_always "Metal";
+    #system_library,link_always "MetalKit";
+    sokol_app_clib :: #library,no_dll "bin/sokol_app_ios";
 } else {
     log_error("This OS is currently not supported");
 }
