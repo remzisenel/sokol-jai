@@ -30,6 +30,7 @@ MODULES=(
     sokol_gl
     sokol_fontstash
     sokol_imgui
+    sokol_spine
 )
 
 # Validate SDK/NDK paths

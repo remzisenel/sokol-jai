@@ -7,8 +7,10 @@ fontstash :: #import,dir "fontstash";
 gfx :: #import,dir "gfx";
 gl :: #import,dir "gl";
 glue :: #import,dir "glue";
+imgui :: #import,dir "imgui";
 log :: #import,dir "log";
 shape :: #import,dir "shape";
+spine :: #import,dir "spine";
 time :: #import,dir "time";
 
 #if OS == .MACOS || OS == .IOS {
