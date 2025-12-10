@@ -29,7 +29,8 @@
         SOKOL_ASSERT(c)             - your own assert macro (default: assert(c))
         SOKOL_UNREACHABLE()         - a guard macro for unreachable code (default: assert(false))
         SOKOL_WIN32_FORCE_MAIN      - define this on Win32 to add a main() entry point
-        SOKOL_WIN32_FORCE_WINMAIN   - define this on Win32 to add a WinMain() entry point (enabled by default unless SOKOL_WIN32_FORCE_MAIN or SOKOL_NO_ENTRY is defined)
+        SOKOL_WIN32_FORCE_WINMAIN   - define this on Win32 to add a WinMain() entry point (enabled by default unless
+                                      SOKOL_WIN32_FORCE_MAIN or SOKOL_NO_ENTRY is defined)
         SOKOL_NO_ENTRY              - define this if sokol_app.h shouldn't "hijack" the main() function
         SOKOL_APP_API_DECL          - public function declaration prefix (default: extern)
         SOKOL_API_DECL              - same as SOKOL_APP_API_DECL
@@ -38,7 +39,7 @@
     Optionally define the following to force debug checks and validations
     even in release mode:
 
-        SOKOL_DEBUG         - by default this is defined if _DEBUG is defined
+        SOKOL_DEBUG         - by default this is defined if NDEBUG is not defined
 
     If sokol_app.h is compiled as a DLL, define the following before
     including the declaration or implementation:
@@ -63,23 +64,40 @@
 
     Link with the following system libraries:
 
-    - on macOS with Metal: Cocoa, QuartzCore, Metal, MetalKit
-    - on macOS with GL: Cocoa, QuartzCore, OpenGL
-    - on iOS with Metal: Foundation, UIKit, Metal, MetalKit
-    - on iOS with GL: Foundation, UIKit, OpenGLES, GLKit
-    - on Linux with EGL: X11, Xi, Xcursor, EGL, GL (or GLESv2), dl, pthread, m(?)
-    - on Linux with GLX: X11, Xi, Xcursor, GL, dl, pthread, m(?)
+    - on macOS:
+        - all backends: Foundation, Cocoa, QuartzCore
+        - with SOKOL_METAL: Metal, MetalKit
+        - with SOKOL_GLCORE: OpenGL
+        - with SOKOL_WGPU: a WebGPU implementation library (tested with webgpu_dawn)
+    - on iOS:
+        - all backends: Foundation, UIKit
+        - with SOKOL_METAL: Metal, MetalKit
+        - with SOKOL_GLES3: OpenGLES, GLKit
+    - on Linux:
+        - all backends: X11, Xi, Xcursor, dl, pthread, m
+        - with SOKOL_GLCORE: GL
+        - with SOKOL_GLES3: GLESv2
+        - with SOKOL_WGPU: a WebGPU implementation library (tested with webgpu_dawn)
+        - with EGL: EGL
     - on Android: GLESv3, EGL, log, android
-    - on Windows with the MSVC or Clang toolchains: no action needed, libs are defined in-source via pragma-comment-lib
-    - on Windows with MINGW/MSYS2 gcc: compile with '-mwin32' so that _WIN32 is defined
-        - link with the following libs: -lkernel32 -luser32 -lshell32
-        - additionally with the GL backend: -lgdi32
-        - additionally with the D3D11 backend: -ld3d11 -ldxgi
+    - on Windows:
+        - with MSVC or Clang: library dependencies are defined via `#pragma comment`
+        - with SOKOL_WGPU: a WebGPU implementation library (tested with webgpu_dawn)
+        - with MINGW/MSYS2 gcc:
+            - compile with '-mwin32' so that _WIN32 is defined
+            - link with the following libs: -lkernel32 -luser32 -lshell32
+            - additionally with the GL backend: -lgdi32
+            - additionally with the D3D11 backend: -ld3d11 -ldxgi
 
     On Linux, you also need to use the -pthread compiler and linker option, otherwise weird
     things will happen, see here for details: https://github.com/floooh/sokol/issues/376
 
     On macOS and iOS, the implementation must be compiled as Objective-C.
+
+    On Emscripten:
+        - for WebGL2: add the linker option `-s USE_WEBGL2=1`
+        - for WebGPU: compile and link with `--use-port=emdawnwebgpu`
+          (for more exotic situations read: https://dawn.googlesource.com/dawn/+/refs/heads/main/src/emdawnwebgpu/pkg/README.md)
 
     FEATURE OVERVIEW
     ================
@@ -87,11 +105,12 @@
     implements the 'application-wrapper' parts of a 3D application:
 
     - a common application entry function
-    - creates a window and 3D-API context/device with a 'default framebuffer'
+    - creates a window and 3D-API context/device with a swapchain
+      surface, depth-stencil-buffer surface and optionally MSAA surface
     - makes the rendered frame visible
     - provides keyboard-, mouse- and low-level touch-events
     - platforms: MacOS, iOS, HTML5, Win32, Linux/RaspberryPi, Android
-    - 3D-APIs: Metal, D3D11, GL4.1, GL4.3, GLES3, WebGL, WebGL2, NOAPI
+    - 3D-APIs: Metal, D3D11, GL4.1, GL4.3, GLES3, WebGL2, WebGPU, NOAPI
 
     FEATURE/PLATFORM MATRIX
     =======================
@@ -101,6 +120,7 @@
     gles3/webgl2        | ---     | ---   | YES(2)| YES   | YES     |  YES
     metal               | ---     | YES   | ---   | YES   | ---     |  ---
     d3d11               | YES     | ---   | ---   | ---   | ---     |  ---
+    webgpu              | YES(4)  | YES(4)| YES(4)| NO    | NO      |  YES
     noapi               | YES     | TODO  | TODO  | ---   | TODO    |  ---
     KEY_DOWN            | YES     | YES   | YES   | SOME  | TODO    |  YES
     KEY_UP              | YES     | YES   | YES   | SOME  | TODO    |  YES
@@ -126,7 +146,7 @@
     IME                 | TODO    | TODO? | TODO  | ???   | TODO    |  ???
     key repeat flag     | YES     | YES   | YES   | ---   | ---     |  YES
     windowed            | YES     | YES   | YES   | ---   | ---     |  YES
-    fullscreen          | YES     | YES   | YES   | YES   | YES     |  ---
+    fullscreen          | YES     | YES   | YES   | YES   | YES     |  YES(3)
     mouse hide          | YES     | YES   | YES   | ---   | ---     |  YES
     mouse lock          | YES     | YES   | YES   | ---   | ---     |  YES
     set cursor type     | YES     | YES   | YES   | ---   | ---     |  YES
@@ -140,6 +160,9 @@
 
     (1) macOS has no regular window icons, instead the dock icon is changed
     (2) supported with EGL only (not GLX)
+    (3) fullscreen in the browser not supported on iphones
+    (4) WebGPU on native desktop platforms should be considered experimental
+        and mainly useful for debugging and benchmarking
 
     STEP BY STEP
     ============
@@ -679,8 +702,7 @@
                 const size_t num_bytes = response->data.size;
                 // and the pointer to the data (same as 'buf' in the fetch-call):
                 const void* ptr = response->data.ptr;
-            }
-            else {
+            } else {
                 // on error check the error code:
                 switch (response->error_code) {
                     case SAPP_HTML5_FETCH_ERROR_BUFFER_TOO_SMALL:
@@ -817,7 +839,7 @@
         sapp_html5_ask_leave_site(bool ask);
 
     The initial state of the associated internal flag can be provided
-    at startup via sapp_desc.html5_ask_leave_site.
+    at startup via sapp_desc.html5.ask_leave_site.
 
     This feature should only be used sparingly in critical situations - for
     instance when the user would loose data - since popping up modal dialog
@@ -856,6 +878,15 @@
 
     To check if the application window is currently in fullscreen mode,
     call sapp_is_fullscreen().
+
+    On the web, sapp_desc.fullscreen will have no effect, and the application
+    will always start in non-fullscreen mode. Call sapp_toggle_fullscreen()
+    from within or 'near' an input event to switch to fullscreen programatically.
+    Note that on the web, the fullscreen state may change back to windowed at
+    any time (either because the browser had rejected switching into fullscreen,
+    or the user leaves fullscreen via Esc), this means that the result
+    of sapp_is_fullscreen() may change also without calling sapp_toggle_fullscreen()!
+
 
     WINDOW ICON SUPPORT
     ===================
@@ -1007,11 +1038,13 @@
         sapp_desc sokol_main(int argc, char* argv[]) {
             return (sapp_desc){
                 //...
-                .html5_bubble_mouse_events = true,
-                .html5_bubble_touch_events = true,
-                .html5_bubble_wheel_events = true,
-                .html5_bubble_key_events = true,
-                .html5_bubble_char_events = true,
+                .html5 = {
+                    .bubble_mouse_events = true,
+                    .bubble_touch_events = true,
+                    .bubble_wheel_events = true,
+                    .bubble_key_events = true,
+                    .bubble_char_events = true,
+                }
             };
         }
 
@@ -1042,15 +1075,15 @@
     is '#canvas'.
 
     If you name your canvas differently, you need to communicate that name to
-    sokol_app.h via `sapp_desc.html5_canvas_selector` as a regular css selector
+    sokol_app.h via `sapp_desc.html5.canvas_selector` as a regular css selector
     string that's compatible with `document.querySelector()`. E.g. if your canvas
     object looks like this:
 
         <canvas id="bla" ...></canvas>
 
-    The `sapp_desc.html5_canvas_selector` string must be set to '#bla':
+    The `sapp_desc.html5.canvas_selector` string must be set to '#bla':
 
-        .html5_canvas_selector = "#bla"
+        .html5.canvas_selector = "#bla"
 
     If the canvas object cannot be looked up via `document.querySelector()` you
     need to use one of the alternative methods, both involve the special
@@ -1095,7 +1128,7 @@
     In that case, pass the same string to sokol_app.h which is used as key
     in the specialHTMLTargets[] map:
 
-        .html5_canvas_selector = "my_canvas"
+        .html5.canvas_selector = "my_canvas"
 
     If sokol_app.h can't find your canvas for some reason check for warning
     messages on the browser console.
@@ -1155,11 +1188,11 @@
     To help with these issues, sokol_app.h can be configured at startup
     via the following Windows-specific sapp_desc flags:
 
-        sapp_desc.win32_console_utf8 (default: false)
+        sapp_desc.win32.console_utf8 (default: false)
             When set to true, the output console codepage will be switched
             to UTF-8 (and restored to the original codepage on exit)
 
-        sapp_desc.win32_console_attach (default: false)
+        sapp_desc.win32.console_attach (default: false)
             When set to true, stdout and stderr will be attached to the
             console of the parent process (if the parent process actually
             has a console). This means that if the application was started
@@ -1168,11 +1201,16 @@
             the application is started via double-click, it will behave like
             a regular UI application, and stdout/stderr will not be visible.
 
-        sapp_desc.win32_console_create (default: false)
+        sapp_desc.win32.console_create (default: false)
             When set to true, a new console window will be created and
             stdout/stderr will be redirected to that console window. It
             doesn't matter if the application is started from the command
             line or via double-click.
+
+            NOTE: setting both win32.console_attach and win32.console_create
+            to true also makes sense and has the effect that output
+            will appear in the existing terminal when started from the cmdline, and
+            otherwise (when started via double-click) will open a console window.
 
     MEMORY ALLOCATION OVERRIDE
     ==========================
@@ -1327,9 +1365,9 @@ sapp_height :: () -> s32 #foreign sokol_app_clib;
 // same as sapp_height(), but returns float
 sapp_heightf :: () -> float #foreign sokol_app_clib;
 // get default framebuffer color pixel format
-sapp_color_format :: () -> s32 #foreign sokol_app_clib;
+sapp_color_format :: () -> sapp_pixel_format #foreign sokol_app_clib;
 // get default framebuffer depth pixel format
-sapp_depth_format :: () -> s32 #foreign sokol_app_clib;
+sapp_depth_format :: () -> sapp_pixel_format #foreign sokol_app_clib;
 // get default framebuffer sample count
 sapp_sample_count :: () -> s32 #foreign sokol_app_clib;
 // returns true when high_dpi was requested and actually running in a high-dpi scenario
@@ -1356,6 +1394,10 @@ sapp_mouse_locked :: () -> bool #foreign sokol_app_clib;
 sapp_set_mouse_cursor :: (cursor: sapp_mouse_cursor) -> void #foreign sokol_app_clib;
 // get current mouse cursor type
 sapp_get_mouse_cursor :: () -> sapp_mouse_cursor #foreign sokol_app_clib;
+// associate a custom mouse cursor image to a sapp_mouse_cursor enum entry
+sapp_bind_mouse_cursor_image :: (cursor: sapp_mouse_cursor, desc: *sapp_image_desc) -> sapp_mouse_cursor #foreign sokol_app_clib;
+// restore the sapp_mouse_cursor enum entry to it's default system appearance
+sapp_unbind_mouse_cursor_image :: (cursor: sapp_mouse_cursor) -> void #foreign sokol_app_clib;
 // return the userdata pointer optionally provided in sapp_desc
 sapp_userdata :: () -> *void #foreign sokol_app_clib;
 // return a copy of the sapp_desc structure
@@ -1386,6 +1428,10 @@ sapp_get_num_dropped_files :: () -> s32 #foreign sokol_app_clib;
 sapp_get_dropped_file_path :: (index: s32) -> *u8 #foreign sokol_app_clib;
 // special run-function for SOKOL_NO_ENTRY (in standard mode this is an empty stub)
 sapp_run :: (desc: *sapp_desc) -> void #foreign sokol_app_clib;
+// get runtime environment information
+sapp_get_environment :: () -> sapp_environment #foreign sokol_app_clib;
+// get current frame's swapchain information (call once per frame!)
+sapp_get_swapchain :: () -> sapp_swapchain #foreign sokol_app_clib;
 // EGL: get EGLDisplay object
 sapp_egl_get_display :: () -> *void #foreign sokol_app_clib;
 // EGL: get EGLContext object
@@ -1396,42 +1442,14 @@ sapp_html5_ask_leave_site :: (ask: bool) -> void #foreign sokol_app_clib;
 sapp_html5_get_dropped_file_size :: (index: s32) -> u32 #foreign sokol_app_clib;
 // HTML5: asynchronously load the content of a dropped file
 sapp_html5_fetch_dropped_file :: (request: *sapp_html5_fetch_request) -> void #foreign sokol_app_clib;
-// Metal: get bridged pointer to Metal device object
-sapp_metal_get_device :: () -> *void #foreign sokol_app_clib;
-// Metal: get bridged pointer to MTKView's current drawable of type CAMetalDrawable
-sapp_metal_get_current_drawable :: () -> *void #foreign sokol_app_clib;
-// Metal: get bridged pointer to MTKView's depth-stencil texture of type MTLTexture
-sapp_metal_get_depth_stencil_texture :: () -> *void #foreign sokol_app_clib;
-// Metal: get bridged pointer to MTKView's msaa-color-texture of type MTLTexture (may be null)
-sapp_metal_get_msaa_color_texture :: () -> *void #foreign sokol_app_clib;
 // macOS: get bridged pointer to macOS NSWindow
 sapp_macos_get_window :: () -> *void #foreign sokol_app_clib;
 // iOS: get bridged pointer to iOS UIWindow
 sapp_ios_get_window :: () -> *void #foreign sokol_app_clib;
-// D3D11: get pointer to ID3D11Device object
-sapp_d3d11_get_device :: () -> *void #foreign sokol_app_clib;
-// D3D11: get pointer to ID3D11DeviceContext object
-sapp_d3d11_get_device_context :: () -> *void #foreign sokol_app_clib;
 // D3D11: get pointer to IDXGISwapChain object
 sapp_d3d11_get_swap_chain :: () -> *void #foreign sokol_app_clib;
-// D3D11: get pointer to ID3D11RenderTargetView object for rendering
-sapp_d3d11_get_render_view :: () -> *void #foreign sokol_app_clib;
-// D3D11: get pointer ID3D11RenderTargetView object for msaa-resolve (may return null)
-sapp_d3d11_get_resolve_view :: () -> *void #foreign sokol_app_clib;
-// D3D11: get pointer ID3D11DepthStencilView
-sapp_d3d11_get_depth_stencil_view :: () -> *void #foreign sokol_app_clib;
 // Win32: get the HWND window handle
 sapp_win32_get_hwnd :: () -> *void #foreign sokol_app_clib;
-// WebGPU: get WGPUDevice handle
-sapp_wgpu_get_device :: () -> *void #foreign sokol_app_clib;
-// WebGPU: get swapchain's WGPUTextureView handle for rendering
-sapp_wgpu_get_render_view :: () -> *void #foreign sokol_app_clib;
-// WebGPU: get swapchain's MSAA-resolve WGPUTextureView (may return null)
-sapp_wgpu_get_resolve_view :: () -> *void #foreign sokol_app_clib;
-// WebGPU: get swapchain's WGPUTextureView for the depth-stencil surface
-sapp_wgpu_get_depth_stencil_view :: () -> *void #foreign sokol_app_clib;
-// GL: get framebuffer object
-sapp_gl_get_framebuffer :: () -> u32 #foreign sokol_app_clib;
 // GL: get major version
 sapp_gl_get_major_version :: () -> s32 #foreign sokol_app_clib;
 // GL: get minor version
@@ -1693,6 +1711,8 @@ sapp_range :: struct {
 sapp_image_desc :: struct {
     width : s32;
     height : s32;
+    cursor_hotspot_x : s32;
+    cursor_hotspot_y : s32;
     pixels : sapp_range;
 }
 
@@ -1734,6 +1754,7 @@ sapp_log_item :: enum u32 {
     WIN32_REGISTER_RAW_INPUT_DEVICES_FAILED_MOUSE_LOCK;
     WIN32_REGISTER_RAW_INPUT_DEVICES_FAILED_MOUSE_UNLOCK;
     WIN32_GET_RAW_INPUT_DATA_FAILED;
+    WIN32_DESTROYICON_FOR_CURSOR_FAILED;
     LINUX_GLX_LOAD_LIBGL_FAILED;
     LINUX_GLX_LOAD_ENTRY_POINTS_FAILED;
     LINUX_GLX_EXTENSION_NOT_FOUND;
@@ -1792,26 +1813,178 @@ sapp_log_item :: enum u32 {
     ANDROID_NATIVE_ACTIVITY_ONCREATE;
     ANDROID_CREATE_THREAD_PIPE_FAILED;
     ANDROID_NATIVE_ACTIVITY_CREATE_SUCCESS;
+    WGPU_DEVICE_LOST;
+    WGPU_DEVICE_LOG;
+    WGPU_DEVICE_UNCAPTURED_ERROR;
     WGPU_SWAPCHAIN_CREATE_SURFACE_FAILED;
-    WGPU_SWAPCHAIN_CREATE_SWAPCHAIN_FAILED;
+    WGPU_SWAPCHAIN_SURFACE_GET_CAPABILITIES_FAILED;
     WGPU_SWAPCHAIN_CREATE_DEPTH_STENCIL_TEXTURE_FAILED;
     WGPU_SWAPCHAIN_CREATE_DEPTH_STENCIL_VIEW_FAILED;
     WGPU_SWAPCHAIN_CREATE_MSAA_TEXTURE_FAILED;
     WGPU_SWAPCHAIN_CREATE_MSAA_VIEW_FAILED;
+    WGPU_SWAPCHAIN_GETCURRENTTEXTURE_FAILED;
     WGPU_REQUEST_DEVICE_STATUS_ERROR;
     WGPU_REQUEST_DEVICE_STATUS_UNKNOWN;
     WGPU_REQUEST_ADAPTER_STATUS_UNAVAILABLE;
     WGPU_REQUEST_ADAPTER_STATUS_ERROR;
     WGPU_REQUEST_ADAPTER_STATUS_UNKNOWN;
     WGPU_CREATE_INSTANCE_FAILED;
+    VULKAN_ALLOC_DEVICE_MEMORY_NO_SUITABLE_MEMORY_TYPE;
+    VULKAN_ALLOCATE_MEMORY_FAILED;
+    VULKAN_CREATE_INSTANCE_FAILED;
+    VULKAN_ENUMERATE_PHYSICAL_DEVICES_FAILED;
+    VULKAN_NO_PHYSICAL_DEVICES_FOUND;
+    VULKAN_NO_SUITABLE_PHYSICAL_DEVICE_FOUND;
+    VULKAN_CREATE_DEVICE_FAILED_EXTENSION_NOT_PRESENT;
+    VULKAN_CREATE_DEVICE_FAILED_FEATURE_NOT_PRESENT;
+    VULKAN_CREATE_DEVICE_FAILED_INITIALIZATION_FAILED;
+    VULKAN_CREATE_DEVICE_FAILED_OTHER;
+    VULKAN_CREATE_SURFACE_FAILED;
+    VULKAN_CREATE_SWAPCHAIN_FAILED;
+    VULKAN_SWAPCHAIN_CREATE_IMAGE_VIEW_FAILED;
+    VULKAN_SWAPCHAIN_CREATE_IMAGE_FAILED;
+    VULKAN_SWAPCHAIN_ALLOC_IMAGE_DEVICE_MEMORY_FAILED;
+    VULKAN_SWAPCHAIN_BIND_IMAGE_MEMORY_FAILED;
+    VULKAN_ACQUIRE_NEXT_IMAGE_FAILED;
+    VULKAN_QUEUE_PRESENT_FAILED;
     IMAGE_DATA_SIZE_MISMATCH;
     DROPPED_FILE_PATH_TOO_LONG;
     CLIPBOARD_STRING_TOO_BIG;
 }
 
+/*
+    sapp_pixel_format
+
+    Defines the pixel format for swapchain surfaces.
+
+    NOTE: when using sokol_gfx.h do not assume that the underlying
+    values are compatible with sg_pixel_format!
+*/
+sapp_pixel_format :: enum u32 {
+    DEFAULT;
+    NONE;
+    RGBA8;
+    SRGB8A8;
+    BGRA8;
+    SBGRA8;
+    DEPTH;
+    DEPTH_STENCIL;
+}
+
+sapp_environment_defaults :: struct {
+    color_format : sapp_pixel_format;
+    depth_format : sapp_pixel_format;
+    sample_count : s32;
+}
+
+sapp_metal_environment :: struct {
+    device : *void;
+}
+
+sapp_d3d11_environment :: struct {
+    device : *void;
+    device_context : *void;
+}
+
+sapp_wgpu_environment :: struct {
+    device : *void;
+}
+
+sapp_vulkan_environment :: struct {
+    physical_device : *void;
+    device : *void;
+    queue : *void;
+    queue_family_index : u32;
+}
+
+sapp_environment :: struct {
+    defaults : sapp_environment_defaults;
+    metal : sapp_metal_environment;
+    d3d11 : sapp_d3d11_environment;
+    wgpu : sapp_wgpu_environment;
+    vulkan : sapp_vulkan_environment;
+}
+
+sapp_metal_swapchain :: struct {
+    current_drawable : *void;
+    depth_stencil_texture : *void;
+    msaa_color_texture : *void;
+}
+
+sapp_d3d11_swapchain :: struct {
+    render_view : *void;
+    resolve_view : *void;
+    depth_stencil_view : *void;
+}
+
+sapp_wgpu_swapchain :: struct {
+    render_view : *void;
+    resolve_view : *void;
+    depth_stencil_view : *void;
+}
+
+sapp_vulkan_swapchain :: struct {
+    render_image : *void;
+    render_view : *void;
+    resolve_image : *void;
+    resolve_view : *void;
+    depth_stencil_image : *void;
+    depth_stencil_view : *void;
+    render_finished_semaphore : *void;
+    present_complete_semaphore : *void;
+}
+
+sapp_gl_swapchain :: struct {
+    framebuffer : u32;
+}
+
+sapp_swapchain :: struct {
+    width : s32;
+    height : s32;
+    sample_count : s32;
+    color_format : sapp_pixel_format;
+    depth_format : sapp_pixel_format;
+    metal : sapp_metal_swapchain;
+    d3d11 : sapp_d3d11_swapchain;
+    wgpu : sapp_wgpu_swapchain;
+    vulkan : sapp_vulkan_swapchain;
+    gl : sapp_gl_swapchain;
+}
+
 sapp_logger :: struct {
     func : (a0: *u8, a1: u32, a2: u32, a3: *u8, a4: u32, a5: *u8, a6: *void) #c_call;
     user_data : *void;
+}
+
+sapp_gl_desc :: struct {
+    major_version : s32;
+    minor_version : s32;
+}
+
+sapp_win32_desc :: struct {
+    console_utf8 : bool;
+    console_create : bool;
+    console_attach : bool;
+}
+
+sapp_html5_desc :: struct {
+    canvas_selector : *u8;
+    canvas_resize : bool;
+    preserve_drawing_buffer : bool;
+    premultiplied_alpha : bool;
+    ask_leave_site : bool;
+    update_document_title : bool;
+    bubble_mouse_events : bool;
+    bubble_touch_events : bool;
+    bubble_wheel_events : bool;
+    bubble_key_events : bool;
+    bubble_char_events : bool;
+    use_emsc_set_main_loop : bool;
+    emsc_set_main_loop_simulate_infinite_loop : bool;
+}
+
+sapp_ios_desc :: struct {
+    keyboard_resizes_canvas : bool;
 }
 
 sapp_desc :: struct {
@@ -1840,25 +2013,10 @@ sapp_desc :: struct {
     icon : sapp_icon_desc;
     allocator : sapp_allocator;
     logger : sapp_logger;
-    gl_major_version : s32;
-    gl_minor_version : s32;
-    win32_console_utf8 : bool;
-    win32_console_create : bool;
-    win32_console_attach : bool;
-    html5_canvas_selector : *u8;
-    html5_canvas_resize : bool;
-    html5_preserve_drawing_buffer : bool;
-    html5_premultiplied_alpha : bool;
-    html5_ask_leave_site : bool;
-    html5_update_document_title : bool;
-    html5_bubble_mouse_events : bool;
-    html5_bubble_touch_events : bool;
-    html5_bubble_wheel_events : bool;
-    html5_bubble_key_events : bool;
-    html5_bubble_char_events : bool;
-    html5_use_emsc_set_main_loop : bool;
-    html5_emsc_set_main_loop_simulate_infinite_loop : bool;
-    ios_keyboard_resizes_canvas : bool;
+    gl : sapp_gl_desc;
+    win32 : sapp_win32_desc;
+    html5 : sapp_html5_desc;
+    ios : sapp_ios_desc;
 }
 
 /*
@@ -1904,5 +2062,21 @@ sapp_mouse_cursor :: enum u32 {
     RESIZE_NESW;
     RESIZE_ALL;
     NOT_ALLOWED;
+    CUSTOM_0;
+    CUSTOM_1;
+    CUSTOM_2;
+    CUSTOM_3;
+    CUSTOM_4;
+    CUSTOM_5;
+    CUSTOM_6;
+    CUSTOM_7;
+    CUSTOM_8;
+    CUSTOM_9;
+    CUSTOM_10;
+    CUSTOM_11;
+    CUSTOM_12;
+    CUSTOM_13;
+    CUSTOM_14;
+    CUSTOM_15;
 }
 
