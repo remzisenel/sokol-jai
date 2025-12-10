@@ -5,9 +5,9 @@
 //  - Windows     : SOKOL_GLCORE
 //  - Android     : SOKOL_GLES3
 // -----------------------------------------------------------------------------
-// Source Commit  : b0c6aff from https://github.com/colinbellino/sokol-jai
+// Source Commit  : b67697c from https://github.com/colinbellino/sokol-jai
 // Sokol Flags    : -DNDEBUG -DIMPL
-// Generated On   : Thu Jul  3 16:58:01 BST 2025
+// Generated On   : Wed Dec 10 14:23:26 GMT 2025
 // -----------------------------------------------------------------------------
 
 

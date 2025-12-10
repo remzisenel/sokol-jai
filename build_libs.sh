@@ -15,7 +15,7 @@ BACKEND_ANDROID="SOKOL_GLES3"
 
 MACOS_SYSROOT=$(xcrun --show-sdk-path --sdk macosx)
 IOS_SYSROOT=$(xcrun --show-sdk-path --sdk iphoneos)
-NDK_PATH="/opt/homebrew/share/android-commandlinetools/ndk/29.0.13113456"
+NDK_PATH="/opt/homebrew/share/android-commandlinetools/ndk/29.0.14033849/"
 
 # Modules to build
 MODULES=(
